@@ -22,9 +22,17 @@ A lightweight, dynamic, and automated maintenance script for Ubuntu systems. It 
 
 ## 🛠️ Management
 
-- **Install:** `sudo ./install.sh` (Sets up weekly automation)
-- **Uninstall:** `sudo ./uninstall.sh` (Removes automation and logs)
-- **Update:** `./update.sh` (Pulls latest version from Git and re-installs)
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/murilogiatti/ubuntu-cleaner-script.git
+   cd ubuntu-cleaner-script
+   chmod +x *.sh
+   ```
+
+2. **Operations:**
+   - **Install:** `sudo ./install.sh` (Sets up weekly automation)
+   - **Uninstall:** `sudo ./uninstall.sh` (Removes automation and logs)
+   - **Update:** `./update.sh` (Pulls latest version from Git and re-installs)
 
 ---
 
@@ -46,9 +54,17 @@ Um script de manutenção leve, dinâmico e automatizado para sistemas Ubuntu. C
 
 ## 🛠️ Gestão
 
-- **Instalar:** `sudo ./install.sh` (Configura automação semanal)
-- **Desinstalar:** `sudo ./uninstall.sh` (Remove automação e logs)
-- **Atualizar:** `./update.sh` (Puxa a versão mais recente do Git e reinstala)
+1. **Clonar o repositório:**
+   ```bash
+   git clone https://github.com/murilogiatti/ubuntu-cleaner-script.git
+   cd ubuntu-cleaner-script
+   chmod +x *.sh
+   ```
+
+2. **Operações:**
+   - **Instalar:** `sudo ./install.sh` (Configura automação semanal)
+   - **Desinstalar:** `sudo ./uninstall.sh` (Remove automação e logs)
+   - **Atualizar:** `./update.sh` (Puxa a versão mais recente do Git e reinstala)
 
 ## 📝 About / Sobre
 
