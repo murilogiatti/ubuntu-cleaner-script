@@ -102,7 +102,7 @@ echo "$MSG_CRASH"
 rm -rf /var/crash/*
 
 # 4. User-Level Maintenance
-if [ ! -z "$REAL_USER" ]; then
+if [ -n "$REAL_USER" ]; then
     echo "$MSG_USER_LVL '$REAL_USER' ---"
     
     su - "$REAL_USER" -c "
