@@ -10,7 +10,7 @@ echo "Verificando por atualizações..."
 if [ -d .git ]; then
     git pull
     
-    if [ $EUID -eq 0 ] || [ ! -z "$SUDO_USER" ]; then
+    if [ $EUID -eq 0 ] || [ -n "$SUDO_USER" ]; then
         echo "Re-installing updated script..."
         echo "Re-instalando script atualizado..."
         sudo ./install.sh
