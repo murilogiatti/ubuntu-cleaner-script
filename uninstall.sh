@@ -4,7 +4,7 @@
 # Uninstaller for UCM
 # ==============================================================================
 
-if [[ $EUID -ne 0 ]]; then
+if [[ "$EUID" -ne 0 ]]; then
    echo "This script must be run as root / Este script deve ser executado como root"
    exit 1
 fi
