@@ -8,19 +8,19 @@ test_root_check() {
     echo "Testing $script root check..."
     output=$(./$script 2>&1)
     status=$?
-    
+
     if [ $status -ne 1 ]; then
         echo "FAIL: $script did not exit with status 1 (got $status)"
         return 1
     fi
-    
+
     if [[ "$output" != *"$EXPECTED_MSG"* ]]; then
         echo "FAIL: $script did not print expected error message"
         echo "Expected: $EXPECTED_MSG"
         echo "Got: $output"
         return 1
     fi
-    
+
     echo "PASS: $script root check verified"
     return 0
 }
