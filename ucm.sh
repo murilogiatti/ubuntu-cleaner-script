@@ -8,22 +8,22 @@
 # ==============================================================================
 
 # Ensure the script is run as root
-if [[ $EUID -ne 0 ]]; then
+if [[ "$EUID" -ne 0 ]]; then
    echo "This script must be run as root / Este script deve ser executado como root"
    exit 1
 fi
 
 # Detect system language
-LANG_CODE=$(echo $LANG | cut -d'_' -f1)
+LANG_CODE=$(echo "$LANG" | cut -d'_' -f1)
 
 # Detection for dynamic user
 REAL_USER=$(who | awk 'NR==1{print $1}')
 if [ -z "$REAL_USER" ]; then
-    REAL_USER=$SUDO_USER
+    REAL_USER="$SUDO_USER"
 fi
 
 LOG_FILE="/var/log/ucm_maintenance.log"
-exec > >(tee -a $LOG_FILE)
+exec > >(tee -a "$LOG_FILE")
 exec 2>&1
 
 if [ "$LANG_CODE" = "pt" ]; then
