@@ -16,4 +16,5 @@ jobs:
       - name: ShellCheck
         run: |
           sudo apt-get install -y shellcheck
-          shellcheck **/*.sh
+          find . -name "*.sh" -exec shellcheck {} +
+

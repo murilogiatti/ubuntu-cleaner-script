@@ -119,5 +119,31 @@ if ! grep -q "UCM Maintenance Report" "$TEST_REPORT"; then
 fi
 echo "PASS: HTML report generated and validated successfully"
 
+# Test 6: Installation and Uninstallation Lifecycle
+echo "Test 6: Full Install / Uninstall Lifecycle..."
+MOCK_ROOT="$TMP_USER_HOME/mock_root"
+mkdir -p "$MOCK_ROOT"
+MOCK_LIB="$MOCK_ROOT/usr/local/lib/ucm"
+MOCK_BIN="$MOCK_ROOT/usr/local/sbin/ucm.sh"
+MOCK_CRON="$MOCK_ROOT/etc/cron.weekly/ucm"
+MOCK_LOGROTATE="$MOCK_ROOT/etc/logrotate.d/ucm"
+
+UCM_TEST_EUID=0 UCM_LIB_DIR="$MOCK_LIB" UCM_BIN="$MOCK_BIN" UCM_CRON="$MOCK_CRON" UCM_LOGROTATE="$MOCK_LOGROTATE" \
+    bash -c "source '$SCRIPT_DIR/lib/common.sh'; install_ucm '$SCRIPT_DIR/ucm.sh' '$MOCK_CRON'" >/dev/null
+
+if [[ ! -x "$MOCK_BIN" || ! -f "$MOCK_LIB/lib/dev_clean.sh" || ! -f "$MOCK_LIB/lib/gpu_cache.sh" ]]; then
+    echo "FAIL: Installed files missing in mock destination"
+    exit 1
+fi
+
+UCM_TEST_EUID=0 UCM_LIB_DIR="$MOCK_LIB" UCM_BIN="$MOCK_BIN" UCM_CRON="$MOCK_CRON" UCM_LOGROTATE="$MOCK_LOGROTATE" \
+    bash -c "source '$SCRIPT_DIR/lib/common.sh'; uninstall_ucm '$MOCK_CRON'" >/dev/null
+
+if [[ -e "$MOCK_BIN" || -e "$MOCK_LIB" || -e "$MOCK_CRON" ]]; then
+    echo "FAIL: Uninstall left files behind"
+    exit 1
+fi
+echo "PASS: Install and Uninstall lifecycle verified completely"
+
 echo "=== All Comprehensive Unit Tests Passed Successfully! ==="
 exit 0

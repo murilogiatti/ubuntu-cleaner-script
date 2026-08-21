@@ -1,5 +1,9 @@
 #!/usr/bin/env bats
 
+teardown() {
+    rm -rf stub_bin
+}
+
 @test "apt_maintenance runs without error (dry‑run)" {
     # Use a stub for apt-get that just echoes commands
     mkdir -p stub_bin

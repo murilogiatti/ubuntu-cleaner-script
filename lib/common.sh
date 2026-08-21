@@ -180,7 +180,7 @@ uninstall_ucm() {
     if [[ -n "$UCM_LIB_DIR" && "$UCM_LIB_DIR" != "/" ]]; then
         rm -rf "$UCM_LIB_DIR"
     fi
-    rm -f "${LOG_FILE:-/var/log/ucm_maintenance.log}"
+    rm -f "${LOG_FILE:-/var/log/ucm_maintenance.log}" 2>/dev/null || true
     # Remove any legacy scripts that might still exist
     rm -f "/etc/cron.weekly/manutencao-semanal" 2>/dev/null || true
     echo "Uninstallation complete. Logs and cron script removed."
