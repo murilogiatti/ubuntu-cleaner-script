@@ -6,9 +6,9 @@ run_as_user() {
     local username="$1"
     shift
     local commands="$*"
-    if [[ "${DRY_RUN:-false}" == true ]]; then
-        echo "[DRY-RUN] su - $username -c $commands"
-        return 0
+    if [[ "$EUID" -ne 0 ]]; then
+        bash -c "$commands"
+        return $?
     fi
     su - "$username" -s /bin/bash -c "$commands"
 }

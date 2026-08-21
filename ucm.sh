@@ -209,9 +209,18 @@ if [[ "$SKIP_USER" != true && -n "$TARGET_USER" ]]; then
         fi
 
         # NPM update
-        run_as_user "$TARGET_USER" "if command -v npm &>/dev/null; then echo \"${MSG[npm]}\"; npm update -g; fi"
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "[DRY-RUN] npm update -g"
+        else
+            run_as_user "$TARGET_USER" "if command -v npm &>/dev/null; then echo \"${MSG[npm]}\"; npm update -g; fi"
+        fi
+
         # UV update
-        run_as_user "$TARGET_USER" "if command -v uv &>/dev/null; then echo \"${MSG[uv]}\"; uv self update &>/dev/null; uv tool upgrade --all; fi"
+        if [[ "$DRY_RUN" == true ]]; then
+            echo "[DRY-RUN] uv self update && uv tool upgrade --all"
+        else
+            run_as_user "$TARGET_USER" "if command -v uv &>/dev/null; then echo \"${MSG[uv]}\"; uv self update &>/dev/null; uv tool upgrade --all; fi"
+        fi
 
         # Developer Caches (UV, Pip, NPM, VS Code, Docker)
         if [[ "$SKIP_DEV" != true ]]; then
