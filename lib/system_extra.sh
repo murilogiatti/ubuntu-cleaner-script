@@ -14,16 +14,16 @@ clean_user_trash() {
         echo "$trash_msg"
         if [[ -d "$trash_dir/files" || -d "$trash_dir/info" || -d "$trash_dir/expunged" ]]; then
             if [[ -d "$trash_dir/files" ]]; then
-                run_cmd find "$trash_dir/files" -mindepth 1 -exec rm -rf -- {} +
+                run_cmd find "$trash_dir/files" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
             fi
             if [[ -d "$trash_dir/info" ]]; then
-                run_cmd find "$trash_dir/info" -mindepth 1 -exec rm -rf -- {} +
+                run_cmd find "$trash_dir/info" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
             fi
             if [[ -d "$trash_dir/expunged" ]]; then
-                run_cmd find "$trash_dir/expunged" -mindepth 1 -exec rm -rf -- {} +
+                run_cmd find "$trash_dir/expunged" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
             fi
         else
-            run_cmd find "$trash_dir" -mindepth 1 -exec rm -rf -- {} +
+            run_cmd find "$trash_dir" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
         fi
     fi
 }

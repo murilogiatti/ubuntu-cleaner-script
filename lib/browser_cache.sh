@@ -38,7 +38,7 @@ clean_browser_cache() {
                         local target="$profile/$subdir"
                         if [[ -d "$target" ]]; then
                             found=true
-                            run_cmd find "$target" -mindepth 1 -exec rm -rf -- {} +
+                            run_cmd find "$target" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
                         fi
                     done
                 fi
