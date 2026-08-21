@@ -4,15 +4,17 @@
 
 clean_browser_cache() {
     local user_home="$1"
+    declare -gA MSG 2>/dev/null || true
+
     local chrome_msg="Chrome cache cleaned."
     local brave_msg="Brave cache cleaned."
     local edge_msg="Edge cache cleaned."
     local firefox_msg="Firefox cache cleaned."
-    
-    if [[ -n "${MSG[chrome]+set}" ]]; then chrome_msg="${MSG[chrome]}"; fi
-    if [[ -n "${MSG[brave]+set}" ]]; then brave_msg="${MSG[brave]}"; fi
-    if [[ -n "${MSG[edge]+set}" ]]; then edge_msg="${MSG[edge]}"; fi
-    if [[ -n "${MSG[firefox]+set}" ]]; then firefox_msg="${MSG[firefox]}"; fi
+
+    if [[ -v MSG[chrome] ]]; then chrome_msg="${MSG[chrome]}"; fi
+    if [[ -v MSG[brave] ]]; then brave_msg="${MSG[brave]}"; fi
+    if [[ -v MSG[edge] ]]; then edge_msg="${MSG[edge]}"; fi
+    if [[ -v MSG[firefox] ]]; then firefox_msg="${MSG[firefox]}"; fi
 
     local chromium_subdirs=(
         "Cache"
@@ -24,7 +26,6 @@ clean_browser_cache() {
         "component_crx_cache"
     )
 
-    # Helper function to clean chromium profiles
     _clean_chromium_dir() {
         local base_dir="$1"
         local found=false
@@ -41,7 +42,11 @@ clean_browser_cache() {
                 fi
             done
         fi
-        [[ "$found" == true ]] && return 0 || return 1
+        if [[ "$found" == true ]]; then
+            return 0
+        else
+            return 1
+        fi
     }
 
     # Google Chrome
@@ -78,5 +83,7 @@ clean_browser_cache() {
             done
         fi
     done
-    [[ "$ff_found" == true ]] && echo "$firefox_msg"
+    if [[ "$ff_found" == true ]]; then
+        echo "$firefox_msg"
+    fi
 }

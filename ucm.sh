@@ -215,23 +215,23 @@ if [[ "$SKIP_USER" != true && -n "$TARGET_USER" ]]; then
 
         # Developer Caches (UV, Pip, NPM, VS Code, Docker)
         if [[ "$SKIP_DEV" != true ]]; then
-            run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_dev_cache); DRY_RUN=$DRY_RUN; MSG[dev_clean]='${MSG[dev_clean]}'; MSG[docker_clean]='${MSG[docker_clean]}'; clean_dev_cache \"$TARGET_HOME\""
+            run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_dev_cache); DRY_RUN=$DRY_RUN; MSG[dev_clean]='${MSG[dev_clean]}'; MSG[docker_clean]='${MSG[docker_clean]}'; clean_dev_cache \"$TARGET_HOME\""
         fi
 
         # Browser caches (Deep Chromium + Firefox)
-        run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_browser_cache); DRY_RUN=$DRY_RUN; MSG[chrome]='${MSG[chrome]}'; MSG[brave]='${MSG[brave]}'; MSG[edge]='${MSG[edge]}'; MSG[firefox]='${MSG[firefox]}'; clean_browser_cache \"$TARGET_HOME\""
+        run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_browser_cache); DRY_RUN=$DRY_RUN; MSG[chrome]='${MSG[chrome]}'; MSG[brave]='${MSG[brave]}'; MSG[edge]='${MSG[edge]}'; MSG[firefox]='${MSG[firefox]}'; clean_browser_cache \"$TARGET_HOME\""
 
         # GPU Shader Caches (Mesa, RADV, NVIDIA)
         if [[ "$SKIP_GPU" != true ]]; then
-            run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_gpu_cache); DRY_RUN=$DRY_RUN; MSG[gpu_clean]='${MSG[gpu_clean]}'; clean_gpu_cache \"$TARGET_HOME\""
+            run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_gpu_cache); DRY_RUN=$DRY_RUN; MSG[gpu_clean]='${MSG[gpu_clean]}'; clean_gpu_cache \"$TARGET_HOME\""
         fi
 
         # Thumbnail cache
-        run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_thumbnail); DRY_RUN=$DRY_RUN; MSG[thumb]='${MSG[thumb]}'; clean_thumbnail \"$TARGET_HOME\""
+        run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_thumbnail); DRY_RUN=$DRY_RUN; MSG[thumb]='${MSG[thumb]}'; clean_thumbnail \"$TARGET_HOME\""
 
         # User Trash
         if [[ "$SKIP_TRASH" != true ]]; then
-            run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_user_trash); DRY_RUN=$DRY_RUN; MSG[trash]='${MSG[trash]}'; clean_user_trash \"$TARGET_HOME\""
+            run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_user_trash); DRY_RUN=$DRY_RUN; MSG[trash]='${MSG[trash]}'; clean_user_trash \"$TARGET_HOME\""
         fi
 
         if [[ "$DRY_RUN" == true ]]; then

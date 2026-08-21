@@ -4,24 +4,28 @@
 
 clean_dev_cache() {
     local user_home="$1"
+    declare -gA MSG 2>/dev/null || true
+
     local dev_msg="--- Cleaning Developer Caches ---"
     local docker_msg="--- Cleaning Docker unused objects ---"
-    if [[ -n "${MSG[dev_clean]+set}" ]]; then dev_msg="${MSG[dev_clean]}"; fi
-    if [[ -n "${MSG[docker_clean]+set}" ]]; then docker_msg="${MSG[docker_clean]}"; fi
+    if [[ -v MSG[dev_clean] ]]; then dev_msg="${MSG[dev_clean]}"; fi
+    if [[ -v MSG[docker_clean] ]]; then docker_msg="${MSG[docker_clean]}"; fi
 
     echo "$dev_msg"
 
     # 1. Python UV Cache
     if command -v uv &>/dev/null; then
         run_cmd uv cache clean &>/dev/null || true
-    elif [[ -d "$user_home/.cache/uv" ]]; then
+    fi
+    if [[ -d "$user_home/.cache/uv" ]]; then
         run_cmd find "$user_home/.cache/uv" -mindepth 1 -exec rm -rf -- {} +
     fi
 
     # 2. Python Pip Cache
     if command -v pip &>/dev/null; then
         run_cmd pip cache purge &>/dev/null || true
-    elif [[ -d "$user_home/.cache/pip" ]]; then
+    fi
+    if [[ -d "$user_home/.cache/pip" ]]; then
         run_cmd find "$user_home/.cache/pip" -mindepth 1 -exec rm -rf -- {} +
     fi
 

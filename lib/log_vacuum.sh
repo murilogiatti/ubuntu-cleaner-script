@@ -7,5 +7,7 @@ log_vacuum() {
     run_cmd journalctl --vacuum-time=3d
 
     echo "${MSG[crash]}"
-    run_cmd find /var/crash -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+    if [[ -d /var/crash ]]; then
+        run_cmd find /var/crash -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+    fi
 }

@@ -4,8 +4,10 @@
 
 clean_gpu_cache() {
     local user_home="$1"
+    declare -gA MSG 2>/dev/null || true
+
     local gpu_msg="--- Cleaning GPU Shader Caches ---"
-    if [[ -n "${MSG[gpu_clean]+set}" ]]; then gpu_msg="${MSG[gpu_clean]}"; fi
+    if [[ -v MSG[gpu_clean] ]]; then gpu_msg="${MSG[gpu_clean]}"; fi
 
     echo "$gpu_msg"
 
