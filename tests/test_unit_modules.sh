@@ -75,6 +75,20 @@ touch "$TMP_USER_HOME/.nv/GLCache/nv_0"
 touch "$TMP_USER_HOME/.cache/thumbnails/thumb_0"
 touch "$TMP_USER_HOME/.local/share/Trash/files/trash_item"
 
+# Create fake mock user profile data (History, Cookies, Bookmarks, Passwords, etc.)
+mkdir -p "$TMP_USER_HOME/.config/google-chrome/Default/Network"
+mkdir -p "$TMP_USER_HOME/.config/BraveSoftware/Brave-Browser/Default/Network"
+mkdir -p "$TMP_USER_HOME/.mozilla/firefox/test.default"
+
+touch "$TMP_USER_HOME/.config/google-chrome/Default/History"
+touch "$TMP_USER_HOME/.config/google-chrome/Default/Network/Cookies"
+touch "$TMP_USER_HOME/.config/google-chrome/Default/Bookmarks"
+touch "$TMP_USER_HOME/.config/google-chrome/Default/Login Data"
+touch "$TMP_USER_HOME/.config/BraveSoftware/Brave-Browser/Default/History"
+touch "$TMP_USER_HOME/.config/BraveSoftware/Brave-Browser/Default/Network/Cookies"
+touch "$TMP_USER_HOME/.mozilla/firefox/test.default/places.sqlite"
+touch "$TMP_USER_HOME/.mozilla/firefox/test.default/cookies.sqlite"
+
 # Execute real cleaning functions in the sandbox
 DRY_RUN=false
 clean_browser_cache "$TMP_USER_HOME" >/dev/null
@@ -83,7 +97,7 @@ clean_gpu_cache "$TMP_USER_HOME" >/dev/null
 clean_thumbnail "$TMP_USER_HOME" >/dev/null
 clean_user_trash "$TMP_USER_HOME" >/dev/null
 
-# Verify everything was emptied inside the mock folders
+# Verify everything volatile was emptied inside the mock folders
 for target in \
     "$TMP_USER_HOME/.cache/google-chrome/Default/Cache/data_0" \
     "$TMP_USER_HOME/.cache/google-chrome/Default/Code Cache/wasm_0" \
@@ -95,12 +109,29 @@ for target in \
     "$TMP_USER_HOME/.cache/thumbnails/thumb_0" \
     "$TMP_USER_HOME/.local/share/Trash/files/trash_item"; do
     if [[ -e "$target" ]]; then
-        echo "FAIL: Expected $target to be deleted, but it still exists!"
+        echo "FAIL: Expected volatile cache $target to be deleted, but it still exists!"
+        exit 1
+    fi
+done
+
+# CRITICAL SAFETY CHECK: Verify user profile data (History, Cookies, Bookmarks) was NEVER touched
+for protected in \
+    "$TMP_USER_HOME/.config/google-chrome/Default/History" \
+    "$TMP_USER_HOME/.config/google-chrome/Default/Network/Cookies" \
+    "$TMP_USER_HOME/.config/google-chrome/Default/Bookmarks" \
+    "$TMP_USER_HOME/.config/google-chrome/Default/Login Data" \
+    "$TMP_USER_HOME/.config/BraveSoftware/Brave-Browser/Default/History" \
+    "$TMP_USER_HOME/.config/BraveSoftware/Brave-Browser/Default/Network/Cookies" \
+    "$TMP_USER_HOME/.mozilla/firefox/test.default/places.sqlite" \
+    "$TMP_USER_HOME/.mozilla/firefox/test.default/cookies.sqlite"; do
+    if [[ ! -f "$protected" ]]; then
+        echo "SECURITY FAIL: Protected user data $protected was deleted!"
         exit 1
     fi
 done
 
 echo "PASS: All mock cleanup functions cleanly emptied target directories"
+echo "PASS: All user profile data (History, Cookies, Bookmarks, Sessions) 100% PRESERVED"
 
 # Test 5: Full CLI Dry-Run with HTML report generation
 echo "Test 5: Full CLI dry-run and HTML report generation..."

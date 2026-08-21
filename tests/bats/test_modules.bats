@@ -52,3 +52,19 @@ teardown() {
     [ "$status" -eq 0 ]
     [ ! -f "$TMP_SANDBOX/.local/share/Trash/files/item6" ]
 }
+
+@test "clean_browser_cache NEVER removes history or cookies" {
+    mkdir -p "$TMP_SANDBOX/.config/google-chrome/Default/Network"
+    mkdir -p "$TMP_SANDBOX/.mozilla/firefox/test.default"
+    touch "$TMP_SANDBOX/.config/google-chrome/Default/History"
+    touch "$TMP_SANDBOX/.config/google-chrome/Default/Network/Cookies"
+    touch "$TMP_SANDBOX/.mozilla/firefox/test.default/places.sqlite"
+    touch "$TMP_SANDBOX/.mozilla/firefox/test.default/cookies.sqlite"
+
+    run bash -c "source ../../lib/common.sh; source ../../lib/browser_cache.sh; DRY_RUN=false; clean_browser_cache '$TMP_SANDBOX'"
+    [ "$status" -eq 0 ]
+    [ -f "$TMP_SANDBOX/.config/google-chrome/Default/History" ]
+    [ -f "$TMP_SANDBOX/.config/google-chrome/Default/Network/Cookies" ]
+    [ -f "$TMP_SANDBOX/.mozilla/firefox/test.default/places.sqlite" ]
+    [ -f "$TMP_SANDBOX/.mozilla/firefox/test.default/cookies.sqlite" ]
+}

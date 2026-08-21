@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 
-# browser_cache.sh – Clean Chromium-based and Firefox caches for a given user.
+# browser_cache.sh – Clean Chromium-based and Firefox volatile caches for a given user.
+# SAFETY GUARANTEE: This module ONLY targets volatile network and shader caches under ~/.cache/.
+# It NEVER touches user profile data such as History, Cookies, Bookmarks, Passwords, or Sessions (which reside under ~/.config/ and ~/.mozilla/).
 
 clean_browser_cache() {
     local user_home="$1"
@@ -16,13 +18,13 @@ clean_browser_cache() {
     if [[ -v MSG[edge] ]]; then edge_msg="${MSG[edge]}"; fi
     if [[ -v MSG[firefox] ]]; then firefox_msg="${MSG[firefox]}"; fi
 
+    # Strictly volatile HTTP/Shader cache directories under ~/.cache/
     local chromium_subdirs=(
         "Cache"
         "Code Cache"
         "GPUCache"
         "DawnWebGPUCache"
         "DawnGraphiteCache"
-        "Service Worker/CacheStorage"
         "component_crx_cache"
     )
 
@@ -49,25 +51,25 @@ clean_browser_cache() {
         fi
     }
 
-    # Google Chrome
+    # Google Chrome (~/.cache/google-chrome)
     if _clean_chromium_dir "$user_home/.cache/google-chrome"; then
         echo "$chrome_msg"
     fi
 
-    # Brave Browser
+    # Brave Browser (~/.cache/BraveSoftware/Brave-Browser)
     if _clean_chromium_dir "$user_home/.cache/BraveSoftware/Brave-Browser"; then
         echo "$brave_msg"
     fi
 
-    # Microsoft Edge
+    # Microsoft Edge (~/.cache/microsoft-edge)
     if _clean_chromium_dir "$user_home/.cache/microsoft-edge"; then
         echo "$edge_msg"
     fi
 
-    # Chromium
+    # Chromium (~/.cache/chromium)
     _clean_chromium_dir "$user_home/.cache/chromium" || true
 
-    # Mozilla Firefox / LibreWolf
+    # Mozilla Firefox / LibreWolf (Strictly ~/.cache/mozilla/firefox, NEVER ~/.mozilla)
     local ff_found=false
     for ff_base in "$user_home/.cache/mozilla/firefox" "$user_home/.cache/librewolf"; do
         if [[ -d "$ff_base" ]]; then

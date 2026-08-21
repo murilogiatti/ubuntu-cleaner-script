@@ -22,9 +22,10 @@ A lightweight, dynamic, modular, and automated system maintenance and disk space
   - **IDE:** Cleans VS Code / VSCodium `Cache`, `CachedData`, and `vscode-ripgrep`.
   - **Docker:** Prunes unused containers, networks, dangling images, and build cache (`docker system prune -f`).
   - **Package Updates:** Upgrades global `npm` packages and `uv` CLI tools (`uv tool upgrade --all`).
-- **Deep Browser Cache Cleaning:**
+- **Deep Browser Cache Cleaning (Volatile Caches Only):**
   - Full multi-profile deep cleaning for **Google Chrome**, **Brave Browser**, **Microsoft Edge**, **Chromium**, and **Mozilla Firefox / LibreWolf**.
-  - Targets `Cache`, `Code Cache` (compiled V8 JS/WASM bytecode), `GPUCache`, `DawnWebGPUCache`, `DawnGraphiteCache`, `Service Worker/CacheStorage`, and extension caches.
+  - Targets strictly volatile data: `Cache`, `Code Cache` (compiled V8 JS/WASM bytecode), `GPUCache`, `DawnWebGPUCache`, `DawnGraphiteCache`, and component caches under `~/.cache/`.
+  - **🔒 Safety Guarantee:** **NEVER** deletes browsing history, cookies, saved passwords, bookmarks, or active sessions (which reside safely under `~/.config/` and `~/.mozilla/`).
 - **GPU Shader Caches:**
   - Cleans **Mesa / OpenGL** (`~/.cache/mesa_shader_cache`), **AMD / RADV Vulkan** (`~/.cache/radv_builtin_shaders`), and **NVIDIA** (`~/.nv/GLCache` and `~/.cache/nvidia`). Shaders are automatically regenerated on-demand by drivers.
 - **Desktop & Storage:**
@@ -92,9 +93,10 @@ Uma ferramenta de manutenção e recuperação de espaço em disco leve, dinâmi
   - **IDE:** Limpa caches do VS Code e VSCodium (`Cache`, `CachedData`, `vscode-ripgrep`).
   - **Docker:** Remove containers parados, imagens órfãs e build cache (`docker system prune -f`).
   - **Atualização de Pacotes:** Atualiza pacotes globais `npm` e ferramentas isoladas `uv` (`uv tool upgrade --all`).
-- **Limpeza Profunda de Navegadores:**
+- **Limpeza Profunda de Navegadores (Apenas Caches Voláteis):**
   - Limpeza completa multi-perfil para **Google Chrome**, **Brave Browser**, **Microsoft Edge**, **Chromium** e **Mozilla Firefox / LibreWolf**.
-  - Remove `Cache`, `Code Cache` (bytecode V8 JS/WASM compilado), `GPUCache`, `DawnWebGPUCache`, `DawnGraphiteCache`, `Service Worker/CacheStorage` e extensões temporárias.
+  - Remove apenas dados voláteis em `~/.cache/`: `Cache`, `Code Cache` (bytecode V8 JS/WASM compilado), `GPUCache`, `DawnWebGPUCache`, `DawnGraphiteCache` e instaladores temporários de extensões.
+  - **🔒 Garantia de Segurança:** **NUNCA** apaga histórico de navegação, cookies de login, senhas salvas, favoritos ou sessões de abas (que residem protegidos sob `~/.config/` e `~/.mozilla/`).
 - **Shaders de Placa de Vídeo (GPU):**
   - Limpa caches de shaders **Mesa / OpenGL** (`~/.cache/mesa_shader_cache`), **AMD / RADV Vulkan** (`~/.cache/radv_builtin_shaders`) e **NVIDIA** (`~/.nv/GLCache`, `~/.cache/nvidia`). Os shaders são recriados automaticamente sob demanda.
 - **Desktop & Armazenamento:**
