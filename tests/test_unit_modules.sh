@@ -102,5 +102,22 @@ done
 
 echo "PASS: All mock cleanup functions cleanly emptied target directories"
 
+# Test 5: Full CLI Dry-Run with HTML report generation
+echo "Test 5: Full CLI dry-run and HTML report generation..."
+TEST_REPORT="$TMP_USER_HOME/test_report.html"
+TEST_LOG="$TMP_USER_HOME/test_log.log"
+UCM_TEST_EUID=0 bash "$SCRIPT_DIR/ucm.sh" --dry-run -u "$(whoami)" -y --log "$TEST_LOG" --report "$TEST_REPORT" >/dev/null
+
+if [[ ! -s "$TEST_REPORT" ]]; then
+    echo "FAIL: HTML report was not generated or is empty"
+    exit 1
+fi
+
+if ! grep -q "UCM Maintenance Report" "$TEST_REPORT"; then
+    echo "FAIL: HTML report is missing title/content"
+    exit 1
+fi
+echo "PASS: HTML report generated and validated successfully"
+
 echo "=== All Comprehensive Unit Tests Passed Successfully! ==="
 exit 0

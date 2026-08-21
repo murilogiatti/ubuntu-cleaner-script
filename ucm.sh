@@ -263,9 +263,14 @@ if [[ -n "$REPORT_PATH" ]]; then
     done
     LOG_CONTENT=$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' "$LOG_FILE")
     mkdir -p "$(dirname "$REPORT_PATH")"
-    sed -e "s/{{DATE}}/$(date)/" \
-        -e "s/{{VERSION}}/$UCM_VERSION/" \
-        -e "s|{{LOG_PATH}}|$LOG_FILE|" \
+
+    ESCAPED_DATE=$(printf '%s' "$(date)" | sed -e 's/[&/\]/\\&/g')
+    ESCAPED_VER=$(printf '%s' "$UCM_VERSION" | sed -e 's/[&/\]/\\&/g')
+    ESCAPED_LOGPATH=$(printf '%s' "$LOG_FILE" | sed -e 's/[&/\]/\\&/g')
+
+    sed -e "s/{{DATE}}/$ESCAPED_DATE/g" \
+        -e "s/{{VERSION}}/$ESCAPED_VER/g" \
+        -e "s/{{LOG_PATH}}/$ESCAPED_LOGPATH/g" \
         -e "s|{{SUMMARY_ITEMS}}|$HTML_SUMMARY|" \
         -e "/{{LOG_CONTENT}}/r /dev/stdin" -e "s/{{LOG_CONTENT}}//" \
         "$SCRIPT_DIR/report_template.html" > "$REPORT_PATH" <<< "$LOG_CONTENT"

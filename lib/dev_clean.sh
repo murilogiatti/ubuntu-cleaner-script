@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# dev_clean.sh – Clean developer tools caches (UV, Pip, NPM, Yarn, Bun, VS Code, Docker)
+# dev_clean.sh – Clean developer tools caches (UV, Pip, NPM, Node-Gyp, Electron, Yarn, Bun, VS Code, Docker)
 
 clean_dev_cache() {
     local user_home="$1"
@@ -29,12 +29,18 @@ clean_dev_cache() {
         run_cmd find "$user_home/.cache/pip" -mindepth 1 -exec rm -rf -- {} +
     fi
 
-    # 3. Node / NPM / Yarn / Bun / PNPM caches
+    # 3. Node / NPM / Yarn / Bun / PNPM / Electron / Node-Gyp caches
     if command -v npm &>/dev/null; then
         run_cmd npm cache clean --force &>/dev/null || true
     fi
     if [[ -d "$user_home/.npm/_cacache" ]]; then
         run_cmd find "$user_home/.npm/_cacache" -mindepth 1 -exec rm -rf -- {} +
+    fi
+    if [[ -d "$user_home/.cache/node-gyp" ]]; then
+        run_cmd find "$user_home/.cache/node-gyp" -mindepth 1 -exec rm -rf -- {} +
+    fi
+    if [[ -d "$user_home/.cache/electron" ]]; then
+        run_cmd find "$user_home/.cache/electron" -mindepth 1 -exec rm -rf -- {} +
     fi
     if [[ -d "$user_home/.cache/yarn" ]]; then
         run_cmd find "$user_home/.cache/yarn" -mindepth 1 -exec rm -rf -- {} +
@@ -43,8 +49,8 @@ clean_dev_cache() {
         run_cmd find "$user_home/.bun/install/cache" -mindepth 1 -exec rm -rf -- {} +
     fi
 
-    # 4. VS Code / VSCodium Caches
-    for vscode_dir in "$user_home/.config/Code" "$user_home/.config/VSCodium"; do
+    # 4. VS Code / VSCodium / Cursor Caches
+    for vscode_dir in "$user_home/.config/Code" "$user_home/.config/VSCodium" "$user_home/.config/Cursor"; do
         if [[ -d "$vscode_dir/Cache" ]]; then
             run_cmd find "$vscode_dir/Cache" -mindepth 1 -exec rm -rf -- {} +
         fi
