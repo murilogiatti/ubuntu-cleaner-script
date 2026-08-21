@@ -1,23 +1,20 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 # ==============================================================================
-# Installer for UCM
+# Installer for UCM (now uses shared utilities)
 # ==============================================================================
 
-if [[ "$EUID" -ne 0 ]]; then
-   echo "This script must be run as root / Este script deve ser executado como root"
-   exit 1
-fi
+# Load shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
-DEST="/etc/cron.weekly/ucm"
-SOURCE="$(pwd)/ucm.sh"
+# Ensure we have root privileges
+require_root
 
-echo "Installing UCM to $DEST..."
-echo "Instalando UCM em $DEST..."
+# Destination (weekly cron) and source script path
+DEST="$UCM_CRON"
+SOURCE="${SCRIPT_DIR}/ucm.sh"
 
-cp "$SOURCE" "$DEST"
-chown root:root "$DEST"
-chmod 755 "$DEST"
-
-echo "Installation complete! The script will run automatically every week."
-echo "Instalação concluída! O script será executado automaticamente toda semana."
+# Install using helper from common.sh
+install_ucm "$SOURCE" "$DEST"

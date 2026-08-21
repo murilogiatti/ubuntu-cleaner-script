@@ -16,6 +16,18 @@ for test_file in tests/test_*.sh; do
     fi
 done
 
+if command -v bats >/dev/null 2>&1; then
+    echo "Executing Bats tests..."
+    (cd tests/bats && bats .)
+    if [ $? -ne 0 ]; then
+        ((errors++))
+    fi
+    echo "----------------"
+else
+    echo "Bats not installed; skipping tests/bats."
+    echo "----------------"
+fi
+
 if [ $errors -eq 0 ]; then
     echo "All test suites passed!"
     exit 0

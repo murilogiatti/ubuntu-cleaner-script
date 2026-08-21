@@ -1,25 +1,16 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
 # ==============================================================================
-# Uninstaller for UCM
+# Uninstaller for UCM (now uses shared utilities)
 # ==============================================================================
 
-if [[ "$EUID" -ne 0 ]]; then
-   echo "This script must be run as root / Este script deve ser executado como root"
-   exit 1
-fi
+# Load shared utilities
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
 
-DEST="/etc/cron.weekly/ucm"
-LOG="/var/log/ucm_maintenance.log"
+# Ensure we have root privileges
+require_root
 
-echo "Uninstalling UCM..."
-echo "Desinstalando UCM..."
-
-rm -f "$DEST"
-rm -f "$LOG"
-
-# Remove legacy scripts if they exist
-rm -f "/etc/cron.weekly/manutencao-semanal"
-
-echo "Uninstallation complete. Logs and cron scripts removed."
-echo "Desinstalação concluída. Logs e scripts do cron removidos."
+# Uninstall using helper from common.sh
+uninstall_ucm "$UCM_CRON"

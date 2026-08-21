@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # ==============================================================================
 # Title:        Ubuntu Cleaner & Maintainer (UCM)
@@ -7,128 +7,270 @@
 # License:      MIT
 # ==============================================================================
 
-# Ensure the script is run as root
-if [[ "$EUID" -ne 0 ]]; then
-   echo "This script must be run as root / Este script deve ser executado como root"
-   exit 1
-fi
+# Load common utilities and modules
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/lib/common.sh"
+source "$SCRIPT_DIR/lib/apt_maint.sh"
+source "$SCRIPT_DIR/lib/snap_clean.sh"
+source "$SCRIPT_DIR/lib/log_vacuum.sh"
+source "$SCRIPT_DIR/lib/run_as_user.sh"
+source "$SCRIPT_DIR/lib/browser_cache.sh"
+source "$SCRIPT_DIR/lib/thumbnail.sh"
+source "$SCRIPT_DIR/lib/dev_clean.sh"
+source "$SCRIPT_DIR/lib/gpu_cache.sh"
+source "$SCRIPT_DIR/lib/system_extra.sh"
 
-# Detect system language
-LANG_CODE=$(echo "$LANG" | cut -d'_' -f1)
-
-# Detection for dynamic user
-REAL_USER=$(who | awk 'NR==1{print $1}')
-if [ -z "$REAL_USER" ]; then
-    REAL_USER="$SUDO_USER"
-fi
-
+# ---------------------------------------------------------------------------
+# Global defaults (can be overridden by command‑line flags)
+# ---------------------------------------------------------------------------
+DRY_RUN=false
+VERBOSE=false
+SKIP_APT=false
+SKIP_SNAP=false
+SKIP_FLATPAK=false
+SKIP_USER=false
+SKIP_DEV=false
+SKIP_GPU=false
+SKIP_TRASH=false
+ASSUME_YES=false
+TARGET_USER=""
 LOG_FILE="/var/log/ucm_maintenance.log"
-exec > >(tee -a "$LOG_FILE")
-exec 2>&1
+REPORT_PATH=""
 
-if [ "$LANG_CODE" = "pt" ]; then
-    MSG_START="Iniciando manutenção do sistema"
-    MSG_USER="Usuário alvo"
-    MSG_APT_UP="--- Atualizando pacotes APT ---"
-    MSG_APT_CLN="--- Limpando caches e órfãos APT ---"
-    MSG_RC="--- Purgando configurações residuais (status rc) ---"
-    MSG_SNAP_UP="--- Atualizando Snaps ---"
-    MSG_SNAP_CLN="--- Removendo revisões antigas do Snap ---"
-    MSG_LOGS="--- Limpando logs do Journalctl (mantendo 3 dias) ---"
-    MSG_CRASH="--- Limpando relatórios de erro (crash) ---"
-    MSG_USER_LVL="--- Executando manutenção de nível de usuário para"
-    MSG_NPM="--- Atualizando pacotes NPM globais ---"
-    MSG_UV="--- Atualizando UV e ferramentas ---"
-    MSG_BROWSER="--- Limpando caches de navegadores ---"
-    MSG_CHROME="Cache do Chrome limpo."
-    MSG_BRAVE="Cache do Brave limpo."
-    MSG_THUMB="--- Limpando cache de miniaturas ---"
-    MSG_END="Manutenção concluída"
-    MSG_LOG_SAVE="Log salvo em"
+# ---------------------------------------------------------------------------
+# Helper: print usage
+# ---------------------------------------------------------------------------
+usage() {
+    cat <<'EOF'
+Usage: ucm.sh [options]
+Options:
+  -d, --dry-run          Show what would be done without executing actions.
+  -v, --verbose          Enable bash tracing (set -x).
+  -u, --user USER        Specify the non‑root user for user‑level maintenance.
+  --log FILE             Write log to FILE (default /var/log/ucm_maintenance.log).
+  --skip-apt             Skip APT maintenance.
+  --skip-snap            Skip Snap maintenance.
+  --skip-flatpak         Skip Flatpak maintenance.
+  --skip-user            Skip user‑level maintenance entirely.
+  --skip-dev             Skip developer caches cleanup (UV, Pip, Node, VS Code, Docker).
+  --skip-gpu             Skip GPU shader caches cleanup (Mesa, RADV, NVIDIA).
+  --skip-trash           Skip emptying user trash.
+  -y, --yes              Run non-interactively, assuming yes for confirmations.
+  --report FILE          Generate an HTML report at FILE.
+  -h, --help             Show this help message.
+EOF
+}
+
+# ---------------------------------------------------------------------------
+# Parse command‑line options
+# ---------------------------------------------------------------------------
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -d|--dry-run) DRY_RUN=true; shift;;
+        -v|--verbose) VERBOSE=true; shift;;
+        -u|--user)
+            [[ $# -ge 2 && "$2" != -* ]] || { echo "Missing value for $1"; usage; exit 1; }
+            TARGET_USER="$2"; shift 2;;
+        --log)
+            [[ $# -ge 2 && "$2" != -* ]] || { echo "Missing value for $1"; usage; exit 1; }
+            LOG_FILE="$2"; shift 2;;
+        --skip-apt) SKIP_APT=true; shift;;
+        --skip-snap) SKIP_SNAP=true; shift;;
+        --skip-flatpak) SKIP_FLATPAK=true; shift;;
+        --skip-user) SKIP_USER=true; shift;;
+        --skip-dev) SKIP_DEV=true; shift;;
+        --skip-gpu) SKIP_GPU=true; shift;;
+        --skip-trash) SKIP_TRASH=true; shift;;
+        -y|--yes|--non-interactive) ASSUME_YES=true; shift;;
+        --report)
+            [[ $# -ge 2 && "$2" != -* ]] || { echo "Missing value for $1"; usage; exit 1; }
+            REPORT_PATH="$2"; shift 2;;
+        -h|--help) usage; exit 0;;
+        *) echo "Unknown option: $1"; usage; exit 1;;
+    esac
+done
+
+# Enable verbose mode if requested
+if [[ "$VERBOSE" == true ]]; then
+    set -x
+fi
+
+# Ensure we are root for operations that need it
+require_root
+
+# Prepare locale messages (populate associative array MSG)
+set_locale_messages
+
+# Set up logging (tee to file while preserving console output)
+tee_to_log
+
+# Set up a trap for errors
+trap 'echo "Error on line $LINENO. Exiting."' ERR
+
+# Determine target user if not provided
+if [[ -z "$TARGET_USER" ]]; then
+    TARGET_USER="$(who am i | awk "{print \$1}" )"
+    if [[ -z "$TARGET_USER" && -n "$SUDO_USER" ]]; then
+        TARGET_USER="$SUDO_USER"
+    fi
+fi
+
+# Begin report summary collection
+REPORT_SUMMARY=()
+
+# ---------------------------------------------------------------------------
+# Header output
+# ---------------------------------------------------------------------------
+echo "========================================"
+echo "${MSG[start]}: $(date)"
+echo "${MSG[user]}: ${TARGET_USER:-<none>}"
+echo "========================================"
+
+# ---------------------------------------------------------------------------
+# 1. APT maintenance (skip if requested)
+# ---------------------------------------------------------------------------
+if [[ "$SKIP_APT" != true ]]; then
+    if confirm_action "Proceed with APT maintenance?"; then
+        apt_maintenance
+        if [[ "$DRY_RUN" == true ]]; then
+            REPORT_SUMMARY+=("APT maintenance simulated")
+        else
+            REPORT_SUMMARY+=("APT maintenance completed")
+        fi
+    else
+        echo "APT maintenance skipped by user."
+        REPORT_SUMMARY+=("APT maintenance skipped")
+    fi
 else
-    MSG_START="Starting system maintenance"
-    MSG_USER="Targeting User"
-    MSG_APT_UP="--- Updating APT Packages ---"
-    MSG_APT_CLN="--- Cleaning APT Caches & Orphans ---"
-    MSG_RC="--- Purging Residual Configs (rc status) ---"
-    MSG_SNAP_UP="--- Updating Snaps ---"
-    MSG_SNAP_CLN="--- Removing Old Snap Revisions ---"
-    MSG_LOGS="--- Cleaning Journalctl Logs (keeping 3 days) ---"
-    MSG_CRASH="--- Cleaning Crash Reports ---"
-    MSG_USER_LVL="--- Executing User-Level Maintenance for"
-    MSG_NPM="--- Updating Global NPM Packages ---"
-    MSG_UV="--- Updating UV & Tools ---"
-    MSG_BROWSER="--- Cleaning Browser Caches ---"
-    MSG_CHROME="Chrome cache cleaned."
-    MSG_BRAVE="Brave cache cleaned."
-    MSG_THUMB="--- Cleaning Thumbnail Cache ---"
-    MSG_END="Maintenance completed"
-    MSG_LOG_SAVE="Log saved at"
+    echo "--skip-apt flag provided – APT maintenance omitted."
+    REPORT_SUMMARY+=("APT maintenance omitted via flag")
 fi
 
+# ---------------------------------------------------------------------------
+# 2. Snap maintenance (skip if requested)
+# ---------------------------------------------------------------------------
+if [[ "$SKIP_SNAP" != true ]]; then
+    if confirm_action "Proceed with Snap maintenance?"; then
+        snap_maintenance
+        if [[ "$DRY_RUN" == true ]]; then
+            REPORT_SUMMARY+=("Snap maintenance simulated")
+        else
+            REPORT_SUMMARY+=("Snap maintenance completed")
+        fi
+    else
+        echo "Snap maintenance skipped by user."
+        REPORT_SUMMARY+=("Snap maintenance skipped")
+    fi
+else
+    echo "--skip-snap flag provided – Snap maintenance omitted."
+    REPORT_SUMMARY+=("Snap maintenance omitted via flag")
+fi
+
+# ---------------------------------------------------------------------------
+# 3. Flatpak maintenance (skip if requested)
+# ---------------------------------------------------------------------------
+if [[ "$SKIP_FLATPAK" != true ]]; then
+    if command -v flatpak &>/dev/null; then
+        if confirm_action "Proceed with Flatpak maintenance?"; then
+            flatpak_maintenance
+            if [[ "$DRY_RUN" == true ]]; then
+                REPORT_SUMMARY+=("Flatpak maintenance simulated")
+            else
+                REPORT_SUMMARY+=("Flatpak maintenance completed")
+            fi
+        else
+            echo "Flatpak maintenance skipped by user."
+            REPORT_SUMMARY+=("Flatpak maintenance skipped")
+        fi
+    fi
+else
+    echo "--skip-flatpak flag provided – Flatpak maintenance omitted."
+    REPORT_SUMMARY+=("Flatpak maintenance omitted via flag")
+fi
+
+# ---------------------------------------------------------------------------
+# 4. System logs & crash cleanup
+# ---------------------------------------------------------------------------
+log_vacuum
+if [[ "$DRY_RUN" == true ]]; then
+    REPORT_SUMMARY+=("System logs and crash cleanup simulated")
+else
+    REPORT_SUMMARY+=("System logs and crash reports cleaned")
+fi
+
+# ---------------------------------------------------------------------------
+# 5. User‑level maintenance (skip if requested)
+# ---------------------------------------------------------------------------
+if [[ "$SKIP_USER" != true && -n "$TARGET_USER" ]]; then
+    if confirm_action "Proceed with user‑level maintenance for $TARGET_USER?"; then
+        TARGET_HOME=$(getent passwd "$TARGET_USER" | cut -d: -f6)
+        if [[ -z "$TARGET_HOME" || ! -d "$TARGET_HOME" ]]; then
+            TARGET_HOME="/home/$TARGET_USER"
+        fi
+
+        # NPM update
+        run_as_user "$TARGET_USER" "if command -v npm &>/dev/null; then echo \"${MSG[npm]}\"; npm update -g; fi"
+        # UV update
+        run_as_user "$TARGET_USER" "if command -v uv &>/dev/null; then echo \"${MSG[uv]}\"; uv self update &>/dev/null; uv tool upgrade --all; fi"
+
+        # Developer Caches (UV, Pip, NPM, VS Code, Docker)
+        if [[ "$SKIP_DEV" != true ]]; then
+            run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_dev_cache); DRY_RUN=$DRY_RUN; MSG[dev_clean]='${MSG[dev_clean]}'; MSG[docker_clean]='${MSG[docker_clean]}'; clean_dev_cache \"$TARGET_HOME\""
+        fi
+
+        # Browser caches (Deep Chromium + Firefox)
+        run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_browser_cache); DRY_RUN=$DRY_RUN; MSG[chrome]='${MSG[chrome]}'; MSG[brave]='${MSG[brave]}'; MSG[edge]='${MSG[edge]}'; MSG[firefox]='${MSG[firefox]}'; clean_browser_cache \"$TARGET_HOME\""
+
+        # GPU Shader Caches (Mesa, RADV, NVIDIA)
+        if [[ "$SKIP_GPU" != true ]]; then
+            run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_gpu_cache); DRY_RUN=$DRY_RUN; MSG[gpu_clean]='${MSG[gpu_clean]}'; clean_gpu_cache \"$TARGET_HOME\""
+        fi
+
+        # Thumbnail cache
+        run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_thumbnail); DRY_RUN=$DRY_RUN; MSG[thumb]='${MSG[thumb]}'; clean_thumbnail \"$TARGET_HOME\""
+
+        # User Trash
+        if [[ "$SKIP_TRASH" != true ]]; then
+            run_as_user "$TARGET_USER" "$(declare -f run_cmd clean_user_trash); DRY_RUN=$DRY_RUN; MSG[trash]='${MSG[trash]}'; clean_user_trash \"$TARGET_HOME\""
+        fi
+
+        if [[ "$DRY_RUN" == true ]]; then
+            REPORT_SUMMARY+=("User‑level maintenance for $TARGET_USER simulated")
+        else
+            REPORT_SUMMARY+=("User‑level maintenance for $TARGET_USER completed")
+        fi
+    else
+        echo "User‑level maintenance skipped by user."
+        REPORT_SUMMARY+=("User‑level maintenance skipped")
+    fi
+else
+    echo "--skip-user flag provided or no target user – user‑level maintenance omitted."
+    REPORT_SUMMARY+=("User‑level maintenance omitted via flag or missing user")
+fi
+
+# ---------------------------------------------------------------------------
+# Footer output
+# ---------------------------------------------------------------------------
 echo "========================================"
-echo "$MSG_START: $(date)"
-echo "$MSG_USER: $REAL_USER"
-echo "========================================"
-
-# 1. APT Maintenance
-echo "$MSG_APT_UP"
-export DEBIAN_FRONTEND=noninteractive
-apt-get update -q
-apt-get upgrade -yq
-
-echo "$MSG_APT_CLN"
-apt-get autoremove --purge -yq
-apt-get clean -q
-apt-get autoclean -q
-
-echo "$MSG_RC"
-dpkg -l | awk '/^rc/ { print $2 }' | xargs -r apt-get purge -yq
-
-# 2. Snap Maintenance
-if command -v snap &> /dev/null; then
-    echo "$MSG_SNAP_UP"
-    snap refresh
-    echo "$MSG_SNAP_CLN"
-    LANG=C snap list --all | awk '/disabled/{print $1, $3}' | while read snapname revision; do
-        snap remove "$snapname" --revision="$revision"
+echo "${MSG[end]}: $(date)"
+echo "${MSG[log_save]}: $LOG_FILE"
+if [[ -n "$REPORT_PATH" ]]; then
+    echo "Generating HTML report at $REPORT_PATH"
+    HTML_SUMMARY=""
+    for item in "${REPORT_SUMMARY[@]}"; do
+        escaped_item=$(printf '%s' "$item" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
+        HTML_SUMMARY+="<li>${escaped_item}</li>\\n"
     done
+    LOG_CONTENT=$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' "$LOG_FILE")
+    mkdir -p "$(dirname "$REPORT_PATH")"
+    sed -e "s/{{DATE}}/$(date)/" \
+        -e "s/{{VERSION}}/$UCM_VERSION/" \
+        -e "s|{{LOG_PATH}}|$LOG_FILE|" \
+        -e "s|{{SUMMARY_ITEMS}}|$HTML_SUMMARY|" \
+        -e "/{{LOG_CONTENT}}/r /dev/stdin" -e "s/{{LOG_CONTENT}}//" \
+        "$SCRIPT_DIR/report_template.html" > "$REPORT_PATH" <<< "$LOG_CONTENT"
+    echo "Report generated."
+    REPORT_SUMMARY+=("HTML report generated at $REPORT_PATH")
 fi
 
-# 3. System Logs & Crashes
-echo "$MSG_LOGS"
-journalctl --vacuum-time=3d
-echo "$MSG_CRASH"
-rm -rf /var/crash/*
-
-# 4. User-Level Maintenance
-if [ -n "$REAL_USER" ]; then
-    echo "$MSG_USER_LVL '$REAL_USER' ---"
-    
-    su - "$REAL_USER" -c "
-    export PATH=\"\$HOME/.npm-global/bin:\$HOME/.local/bin:\$PATH\"
-
-    if command -v npm &> /dev/null; then
-        echo \"$MSG_NPM\"
-        npm update -g
-    fi
-
-    if command -v uv &> /dev/null; then
-        echo \"$MSG_UV\"
-        uv self update &> /dev/null
-        uv tool upgrade --all
-    fi
-
-    echo \"$MSG_BROWSER\"
-    [ -d \"\$HOME/.cache/google-chrome/Default/Cache\" ] && rm -rf \"\$HOME/.cache/google-chrome/Default/Cache/*\" && echo \"$MSG_CHROME\"
-    [ -d \"\$HOME/.cache/BraveSoftware/Brave-Browser/Default/Cache\" ] && rm -rf \"\$HOME/.cache/BraveSoftware/Brave-Browser/Default/Cache/*\" && echo \"$MSG_BRAVE\"
-
-    echo \"$MSG_THUMB\"
-    rm -rf \"\$HOME/.cache/thumbnails/*\"
-    "
-fi
-
-echo "========================================"
-echo "$MSG_END: $(date)"
-echo "$MSG_LOG_SAVE: $LOG_FILE"
 echo "========================================"

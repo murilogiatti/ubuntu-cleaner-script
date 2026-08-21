@@ -1,0 +1,11 @@
+[Unit]
+Description=Ubuntu Cleaner & Maintainer (UCM) weekly maintenance
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/ucm.sh --yes --log /var/log/ucm_maintenance.log
+
+[Install]
+WantedBy=timers.target
