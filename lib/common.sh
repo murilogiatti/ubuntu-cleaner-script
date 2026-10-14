@@ -100,7 +100,9 @@ set_locale_messages() {
 tee_to_log() {
     LOG_FILE="${LOG_FILE:-/var/log/ucm_maintenance.log}"
     mkdir -p "$(dirname "$LOG_FILE")"
-    exec > >(tee -a "$LOG_FILE")
+    CURRENT_RUN_LOG=$(mktemp /tmp/ucm_run_XXXXXX.log 2>/dev/null || echo "/tmp/ucm_run_$$.log")
+    export CURRENT_RUN_LOG
+    exec > >(tee -a "$LOG_FILE" "$CURRENT_RUN_LOG")
     exec 2>&1
 }
 

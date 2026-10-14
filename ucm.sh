@@ -299,7 +299,10 @@ if [[ -n "$REPORT_PATH" ]]; then
         echo "## Execution Log"
         echo ""
         echo '```text'
-        if [[ -f "$LOG_FILE" ]]; then
+        if [[ -n "${CURRENT_RUN_LOG:-}" && -f "$CURRENT_RUN_LOG" ]]; then
+            cat "$CURRENT_RUN_LOG"
+            rm -f "$CURRENT_RUN_LOG"
+        elif [[ -f "$LOG_FILE" ]]; then
             cat "$LOG_FILE"
         fi
         echo '```'
