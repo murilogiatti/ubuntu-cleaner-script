@@ -12,16 +12,18 @@ A lightweight, dynamic, modular, and automated system maintenance and disk space
 ### 🛡️ System Level (Root)
 - **APT:** Updates package indexes, upgrades packages, removes orphaned dependencies (`autoremove --purge`), cleans APT caches, and purges residual configurations (`rc` packages).
 - **Snap:** Updates all snaps and automatically removes old disabled revisions to reclaim disk space.
-- **Flatpak:** Updates all Flatpak runtimes/apps and uninstalls unused runtimes (`flatpak uninstall --unused`).
-- **Logs & Diagnostics:** Vacuums systemd journal logs (keeps last 3 days) and empties `/var/crash`.
+- **Flatpak:** Updates all Flatpak runtimes/apps, uninstalls unused runtimes (`flatpak uninstall --unused`), and cleans app caches (`~/.var/app/*/cache`).
+- **Logs & Diagnostics:** Vacuums systemd journal logs (keeps last 3 days), cleans systemd coredumps (`/var/lib/systemd/coredump`), and empties `/var/crash`.
 
-### 👤 User Level (Dynamic per User)
+### 👤 User Level (Dynamic per User with Automated Fallback)
 - **Developer Caches & Tools:**
   - **Python:** Cleans Python `uv` cache and `pip` wheel caches.
   - **Node.js / JS:** Cleans `npm` cache (`npm cache clean --force`), `~/.npm/_cacache`, `yarn`, `pnpm`, and `bun` caches.
-  - **IDE:** Cleans VS Code / VSCodium `Cache`, `CachedData`, and `vscode-ripgrep`.
+  - **Rust / Cargo:** Cleans `~/.cargo/registry/cache` and `~/.cargo/.package-cache`.
+  - **Go:** Cleans Go build cache (`go clean -cache`, `~/.cache/go-build`).
+  - **IDE:** Cleans VS Code / VSCodium / Cursor `Cache`, `CachedData`, and `vscode-ripgrep`.
   - **Docker:** Prunes unused containers, networks, dangling images, and build cache (`docker system prune -f`).
-  - **Package Updates:** Upgrades global `npm` packages and `uv` CLI tools (`uv tool upgrade --all`).
+  - **Package Updates:** Upgrades global `npm` packages (with permission check) and `uv` CLI tools (`uv tool upgrade --all`).
 - **Deep Browser Cache Cleaning (Volatile Caches Only):**
   - Full multi-profile deep cleaning for **Google Chrome**, **Brave Browser**, **Microsoft Edge**, **Chromium**, and **Mozilla Firefox / LibreWolf**.
   - Targets strictly volatile data: `Cache`, `Code Cache` (compiled V8 JS/WASM bytecode), `GPUCache`, `DawnWebGPUCache`, `DawnGraphiteCache`, and component caches under `~/.cache/`.
@@ -40,17 +42,17 @@ A lightweight, dynamic, modular, and automated system maintenance and disk space
 |------|-------------|
 | `-d`, `--dry-run` | Show what would be done without performing any destructive actions. |
 | `-v`, `--verbose` | Enable Bash tracing (`set -x`) for detailed debugging output. |
-| `-u USER`, `--user USER` | Specify the target non‑root user for user‑level maintenance. |
+| `-u USER`, `--user USER` | Specify the target non‑root user for user‑level maintenance (auto-detects interactive user if omitted). |
 | `--log FILE` | Write the log to the specified `FILE` (default `/var/log/ucm_maintenance.log`). |
 | `--skip-apt` | Skip the APT maintenance stage. |
 | `--skip-snap` | Skip the Snap maintenance stage. |
 | `--skip-flatpak` | Skip the Flatpak maintenance stage. |
 | `--skip-user` | Skip user‑level maintenance entirely. |
-| `--skip-dev` | Skip developer caches cleanup (UV, Pip, Node, VS Code, Docker). |
+| `--skip-dev` | Skip developer caches cleanup (UV, Pip, Node, Rust, Go, VS Code, Docker). |
 | `--skip-gpu` | Skip GPU shader caches cleanup (Mesa, RADV, NVIDIA). |
 | `--skip-trash` | Skip emptying user trash. |
 | `-y`, `--yes`, `--non-interactive` | Assume yes for prompts (intended for cron/systemd automation). |
-| `--report FILE` | Generate an HTML report of the run at `FILE`. |
+| `--report FILE` | Generate a summary report of the run at `FILE` (`.md` or `.txt`). |
 | `-h`, `--help` | Show usage information. |
 
 ---
@@ -65,13 +67,13 @@ A lightweight, dynamic, modular, and automated system maintenance and disk space
    ```
 
 2. **Operations:**
-   - **Install:** `sudo ./install.sh` (Installs under `/usr/local/lib/ucm`, creates `/usr/local/sbin/ucm.sh`, and sets up weekly cron automation)
-   - **Uninstall:** `sudo ./uninstall.sh` (Removes cron automation, binaries, and logs)
+   - **Install:** `sudo ./install.sh` (Installs under `/usr/local/lib/ucm`, creates `/usr/local/sbin/ucm.sh`, enables systemd `ucm.timer` and cron automation)
+   - **Uninstall:** `sudo ./uninstall.sh` (Removes systemd timers, cron automation, binaries, and logs)
    - **Update:** `./update.sh` (Pulls latest version from Git and reinstalls)
    - **Interactive Run:** `sudo ./ucm.sh`
    - **Non-interactive / Automated:** `sudo ./ucm.sh --yes`
    - **Dry Run (Simulation):** `sudo ./ucm.sh --dry-run --yes`
-   - **Generate HTML Report:** `sudo ./ucm.sh --yes --report /tmp/ucm-report.html`
+   - **Generate Report:** `sudo ./ucm.sh --yes --report /tmp/ucm-report.md`
 
 ---
 
@@ -83,14 +85,16 @@ Uma ferramenta de manutenção e recuperação de espaço em disco leve, dinâmi
 ### 🛡️ Nível de Sistema (Root)
 - **APT:** Atualiza repositórios, atualiza pacotes, remove dependências órfãs (`autoremove --purge`), limpa caches e purga arquivos de configuração residuais (`status rc`).
 - **Snap:** Atualiza todos os snaps e remove revisões antigas desabilitadas para liberar espaço em disco.
-- **Flatpak:** Atualiza pacotes Flatpak e desinstala runtimes órfãos não utilizados (`flatpak uninstall --unused`).
-- **Logs & Diagnósticos:** Compacta logs do journalctl (mantém últimos 3 dias) e limpa `/var/crash`.
+- **Flatpak:** Atualiza pacotes Flatpak, desinstala runtimes órfãos não utilizados (`flatpak uninstall --unused`) e limpa caches de apps (`~/.var/app/*/cache`).
+- **Logs & Diagnósticos:** Compacta logs do journalctl (mantém últimos 3 dias), limpa coredumps (`/var/lib/systemd/coredump`) e limpa `/var/crash`.
 
-### 👤 Nível de Usuário (Dinâmico por Usuário)
+### 👤 Nível de Usuário (Dinâmico com Fallback Automático)
 - **Caches e Ferramentas de Desenvolvimento:**
   - **Python:** Limpa cache do `uv` e caches de wheels do `pip`.
   - **Node.js / JS:** Limpa cache do `npm` (`npm cache clean --force`), `~/.npm/_cacache`, `yarn`, `pnpm` e `bun`.
-  - **IDE:** Limpa caches do VS Code e VSCodium (`Cache`, `CachedData`, `vscode-ripgrep`).
+  - **Rust / Cargo:** Limpa caches de crates e pacotes (`~/.cargo/registry/cache`, `~/.cargo/.package-cache`).
+  - **Go:** Limpa cache de compilação do Go (`go clean -cache`, `~/.cache/go-build`).
+  - **IDE:** Limpa caches do VS Code, VSCodium e Cursor (`Cache`, `CachedData`, `vscode-ripgrep`).
   - **Docker:** Remove containers parados, imagens órfãs e build cache (`docker system prune -f`).
   - **Atualização de Pacotes:** Atualiza pacotes globais `npm` e ferramentas isoladas `uv` (`uv tool upgrade --all`).
 - **Limpeza Profunda de Navegadores (Apenas Caches Voláteis):**

@@ -45,3 +45,16 @@ flatpak_maintenance() {
     echo "$flatpak_cln"
     run_cmd flatpak uninstall --unused -y --noninteractive 2>/dev/null || true
 }
+
+clean_flatpak_user_cache() {
+    local user_home="$1"
+    local var_app="$user_home/.var/app"
+    if [[ -d "$var_app" ]]; then
+        for app_dir in "$var_app"/*; do
+            if [[ -d "$app_dir/cache" ]]; then
+                run_cmd find "$app_dir/cache" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+            fi
+        done
+    fi
+}
+

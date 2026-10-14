@@ -7,5 +7,3 @@ After=network-online.target
 Type=oneshot
 ExecStart=/usr/local/sbin/ucm.sh --yes --log /var/log/ucm_maintenance.log
 
-[Install]
-WantedBy=timers.target

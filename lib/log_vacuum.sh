@@ -10,4 +10,7 @@ log_vacuum() {
     if [[ -d /var/crash ]]; then
         run_cmd find /var/crash -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
     fi
+    if [[ -d /var/lib/systemd/coredump ]]; then
+        run_cmd find /var/lib/systemd/coredump -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+    fi
 }

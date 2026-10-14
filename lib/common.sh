@@ -3,14 +3,15 @@
 # Common utilities for Ubuntu Cleaner & Maintainer (UCM)
 
 # Script version – keep in sync with README
-UCM_VERSION="1.4.0"
+UCM_VERSION="1.5.0"
 
 # Default installation paths. Keep the full project together so ucm.sh can
-# source lib/*.sh and the report template after installation.
+# source lib/*.sh after installation.
 UCM_LIB_DIR="${UCM_LIB_DIR:-/usr/local/lib/ucm}"
 UCM_BIN="${UCM_BIN:-/usr/local/sbin/ucm.sh}"
 UCM_CRON="${UCM_CRON:-/etc/cron.weekly/ucm}"
 UCM_LOGROTATE="${UCM_LOGROTATE:-/etc/logrotate.d/ucm}"
+UCM_SYSTEMD_DIR="${UCM_SYSTEMD_DIR:-/etc/systemd/system}"
 
 # ---------------------------------------------------------------------------
 # require_root: ensure script runs with root privileges.
@@ -142,9 +143,8 @@ install_ucm() {
     project_dir="$(cd "$(dirname "$src")" && pwd)"
 
     echo "Installing UCM application to $UCM_LIB_DIR..."
-    install -d -m 755 "$UCM_LIB_DIR/lib" "$(dirname "$UCM_BIN")" "$(dirname "$cron_dest")" "$(dirname "$UCM_LOGROTATE")"
+    install -d -m 755 "$UCM_LIB_DIR/lib" "$(dirname "$UCM_BIN")" "$(dirname "$cron_dest")" "$(dirname "$UCM_LOGROTATE")" "$UCM_SYSTEMD_DIR"
     install -m 755 "$project_dir/ucm.sh" "$UCM_LIB_DIR/ucm.sh"
-    install -m 644 "$project_dir/report_template.html" "$UCM_LIB_DIR/report_template.html"
     install -m 644 "$project_dir"/lib/*.sh "$UCM_LIB_DIR/lib/"
     if [[ -f "$project_dir/logrotate_ucm" ]]; then
         install -m 644 "$project_dir/logrotate_ucm" "$UCM_LOGROTATE"
@@ -159,6 +159,20 @@ EOF
     ucm_chown_root root:root "$UCM_BIN"
     chmod 755 "$UCM_BIN"
 
+    # Install Systemd units if present
+    if [[ -f "$project_dir/systemd/ucm.service" && -f "$project_dir/systemd/ucm.timer" ]]; then
+        install -m 644 "$project_dir/systemd/ucm.service" "$UCM_SYSTEMD_DIR/ucm.service"
+        install -m 644 "$project_dir/systemd/ucm.timer" "$UCM_SYSTEMD_DIR/ucm.timer"
+        ucm_chown_root root:root "$UCM_SYSTEMD_DIR/ucm.service" "$UCM_SYSTEMD_DIR/ucm.timer"
+
+        if [[ -d /run/systemd/system && -z "${UCM_TEST_EUID:-}" ]] && command -v systemctl &>/dev/null; then
+            systemctl daemon-reload
+            systemctl enable --now ucm.timer
+            echo "Systemd timer (ucm.timer) enabled and started successfully."
+        fi
+    fi
+
+    # Install cron script as fallback / standard weekly job
     cat > "$cron_dest" <<EOF
 #!/usr/bin/env bash
 exec "$UCM_BIN" --yes --log /var/log/ucm_maintenance.log
@@ -174,6 +188,16 @@ EOF
 uninstall_ucm() {
     local dest="${1:-$UCM_CRON}"
     echo "Uninstalling UCM..."
+
+    # Disable and remove systemd timer/service if present
+    if [[ -d /run/systemd/system && -z "${UCM_TEST_EUID:-}" ]] && command -v systemctl &>/dev/null; then
+        systemctl disable --now ucm.timer 2>/dev/null || true
+    fi
+    rm -f "$UCM_SYSTEMD_DIR/ucm.timer" "$UCM_SYSTEMD_DIR/ucm.service"
+    if [[ -d /run/systemd/system && -z "${UCM_TEST_EUID:-}" ]] && command -v systemctl &>/dev/null; then
+        systemctl daemon-reload 2>/dev/null || true
+    fi
+
     rm -f "$dest"
     rm -f "$UCM_BIN"
     rm -f "$UCM_LOGROTATE"
@@ -183,7 +207,7 @@ uninstall_ucm() {
     rm -f "${LOG_FILE:-/var/log/ucm_maintenance.log}" 2>/dev/null || true
     # Remove any legacy scripts that might still exist
     rm -f "/etc/cron.weekly/manutencao-semanal" 2>/dev/null || true
-    echo "Uninstallation complete. Logs and cron script removed."
+    echo "Uninstallation complete. Logs, systemd units, and cron script removed."
 }
 
 # ---------------------------------------------------------------------------

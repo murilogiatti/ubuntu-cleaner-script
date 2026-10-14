@@ -56,7 +56,7 @@ Options:
   --skip-gpu             Skip GPU shader caches cleanup (Mesa, RADV, NVIDIA).
   --skip-trash           Skip emptying user trash.
   -y, --yes              Run non-interactively, assuming yes for confirmations.
-  --report FILE          Generate an HTML report at FILE.
+  --report FILE          Generate a summary report at FILE (.md or .txt).
   -h, --help             Show this help message.
 EOF
 }
@@ -109,9 +109,20 @@ trap 'echo "Error on line $LINENO. Exiting."' ERR
 
 # Determine target user if not provided
 if [[ -z "$TARGET_USER" ]]; then
-    TARGET_USER="$(who am i | awk "{print \$1}" )"
-    if [[ -z "$TARGET_USER" && -n "$SUDO_USER" ]]; then
+    TARGET_USER="$(who am i 2>/dev/null | awk '{print $1}')"
+    if [[ -z "$TARGET_USER" && -n "${SUDO_USER:-}" ]]; then
         TARGET_USER="$SUDO_USER"
+    fi
+    if [[ -z "$TARGET_USER" ]]; then
+        TARGET_USER="$(awk -F: '$3 >= 1000 && $3 < 60000 && $1 != "nobody" { print $1; exit }' /etc/passwd 2>/dev/null)"
+    fi
+fi
+
+# If target user was provided as a numeric UID, resolve to login name
+if [[ "$TARGET_USER" =~ ^[0-9]+$ ]]; then
+    RESOLVED_USER="$(id -nu "$TARGET_USER" 2>/dev/null || true)"
+    if [[ -n "$RESOLVED_USER" ]]; then
+        TARGET_USER="$RESOLVED_USER"
     fi
 fi
 
@@ -208,11 +219,11 @@ if [[ "$SKIP_USER" != true && -n "$TARGET_USER" ]]; then
             TARGET_HOME="/home/$TARGET_USER"
         fi
 
-        # NPM update
+        # NPM update (only if prefix is writable by user)
         if [[ "$DRY_RUN" == true ]]; then
             echo "[DRY-RUN] npm update -g"
         else
-            run_as_user "$TARGET_USER" "if command -v npm &>/dev/null; then echo \"${MSG[npm]}\"; npm update -g; fi"
+            run_as_user "$TARGET_USER" "if command -v npm &>/dev/null; then npm_p=\$(npm config get prefix 2>/dev/null || echo '/usr'); if [ -w \"\$npm_p\" ] || [ -w \"\$npm_p/lib\" ]; then echo \"${MSG[npm]}\"; npm update -g; fi; fi"
         fi
 
         # UV update
@@ -222,7 +233,7 @@ if [[ "$SKIP_USER" != true && -n "$TARGET_USER" ]]; then
             run_as_user "$TARGET_USER" "if command -v uv &>/dev/null; then echo \"${MSG[uv]}\"; uv self update &>/dev/null; uv tool upgrade --all; fi"
         fi
 
-        # Developer Caches (UV, Pip, NPM, VS Code, Docker)
+        # Developer Caches (UV, Pip, NPM, Rust, Go, VS Code, Docker)
         if [[ "$SKIP_DEV" != true ]]; then
             run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_dev_cache); DRY_RUN=$DRY_RUN; MSG[dev_clean]='${MSG[dev_clean]}'; MSG[docker_clean]='${MSG[docker_clean]}'; clean_dev_cache \"$TARGET_HOME\""
         fi
@@ -234,6 +245,9 @@ if [[ "$SKIP_USER" != true && -n "$TARGET_USER" ]]; then
         if [[ "$SKIP_GPU" != true ]]; then
             run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_gpu_cache); DRY_RUN=$DRY_RUN; MSG[gpu_clean]='${MSG[gpu_clean]}'; clean_gpu_cache \"$TARGET_HOME\""
         fi
+
+        # Flatpak User App Caches
+        run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_flatpak_user_cache); DRY_RUN=$DRY_RUN; clean_flatpak_user_cache \"$TARGET_HOME\""
 
         # Thumbnail cache
         run_as_user "$TARGET_USER" "declare -A MSG; $(declare -f run_cmd clean_thumbnail); DRY_RUN=$DRY_RUN; MSG[thumb]='${MSG[thumb]}'; clean_thumbnail \"$TARGET_HOME\""
@@ -264,27 +278,34 @@ echo "========================================"
 echo "${MSG[end]}: $(date)"
 echo "${MSG[log_save]}: $LOG_FILE"
 if [[ -n "$REPORT_PATH" ]]; then
-    echo "Generating HTML report at $REPORT_PATH"
-    HTML_SUMMARY=""
-    for item in "${REPORT_SUMMARY[@]}"; do
-        escaped_item=$(printf '%s' "$item" | sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g')
-        HTML_SUMMARY+="<li>${escaped_item}</li>\\n"
-    done
-    LOG_CONTENT=$(sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g' "$LOG_FILE")
+    echo "Generating report at $REPORT_PATH"
     mkdir -p "$(dirname "$REPORT_PATH")"
+    sync 2>/dev/null || true
 
-    ESCAPED_DATE=$(printf '%s' "$(date)" | sed -e 's/[&/\]/\\&/g')
-    ESCAPED_VER=$(printf '%s' "$UCM_VERSION" | sed -e 's/[&/\]/\\&/g')
-    ESCAPED_LOGPATH=$(printf '%s' "$LOG_FILE" | sed -e 's/[&/\]/\\&/g')
-
-    sed -e "s/{{DATE}}/$ESCAPED_DATE/g" \
-        -e "s/{{VERSION}}/$ESCAPED_VER/g" \
-        -e "s/{{LOG_PATH}}/$ESCAPED_LOGPATH/g" \
-        -e "s|{{SUMMARY_ITEMS}}|$HTML_SUMMARY|" \
-        -e "/{{LOG_CONTENT}}/r /dev/stdin" -e "s/{{LOG_CONTENT}}//" \
-        "$SCRIPT_DIR/report_template.html" > "$REPORT_PATH" <<< "$LOG_CONTENT"
+    {
+        echo "# UCM Maintenance Report"
+        echo ""
+        echo "- **Date:** $(date)"
+        echo "- **Version:** ${UCM_VERSION:-1.5.0}"
+        echo "- **User:** ${TARGET_USER:-<none>}"
+        echo "- **Log Path:** $LOG_FILE"
+        echo ""
+        echo "## Summary"
+        echo ""
+        for item in "${REPORT_SUMMARY[@]}"; do
+            echo "- $item"
+        done
+        echo ""
+        echo "## Execution Log"
+        echo ""
+        echo '```text'
+        if [[ -f "$LOG_FILE" ]]; then
+            cat "$LOG_FILE"
+        fi
+        echo '```'
+    } > "$REPORT_PATH"
     echo "Report generated."
-    REPORT_SUMMARY+=("HTML report generated at $REPORT_PATH")
+    REPORT_SUMMARY+=("Report generated at $REPORT_PATH")
 fi
 
 echo "========================================"

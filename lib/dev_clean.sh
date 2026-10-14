@@ -49,7 +49,23 @@ clean_dev_cache() {
         run_cmd find "$user_home/.bun/install/cache" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
     fi
 
-    # 4. VS Code / VSCodium / Cursor Caches
+    # 4. Rust / Cargo Caches
+    if [[ -d "$user_home/.cargo/registry/cache" ]]; then
+        run_cmd find "$user_home/.cargo/registry/cache" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+    fi
+    if [[ -d "$user_home/.cargo/.package-cache" ]]; then
+        run_cmd find "$user_home/.cargo/.package-cache" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+    fi
+
+    # 5. Go Build Cache
+    if command -v go &>/dev/null; then
+        run_cmd go clean -cache &>/dev/null || true
+    fi
+    if [[ -d "$user_home/.cache/go-build" ]]; then
+        run_cmd find "$user_home/.cache/go-build" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +
+    fi
+
+    # 6. VS Code / VSCodium / Cursor Caches
     for vscode_dir in "$user_home/.config/Code" "$user_home/.config/VSCodium" "$user_home/.config/Cursor"; do
         if [[ -d "$vscode_dir/Cache" ]]; then
             run_cmd find "$vscode_dir/Cache" -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +

@@ -53,10 +53,13 @@ mkdir -p "$TMP_USER_HOME/.cache/mozilla/firefox/test.default/cache2"
 mkdir -p "$TMP_USER_HOME/.cache/uv"
 mkdir -p "$TMP_USER_HOME/.cache/pip"
 mkdir -p "$TMP_USER_HOME/.npm/_cacache"
+mkdir -p "$TMP_USER_HOME/.cargo/registry/cache"
+mkdir -p "$TMP_USER_HOME/.cache/go-build"
 mkdir -p "$TMP_USER_HOME/.config/Code/Cache"
 mkdir -p "$TMP_USER_HOME/.cache/mesa_shader_cache"
 mkdir -p "$TMP_USER_HOME/.cache/radv_builtin_shaders"
 mkdir -p "$TMP_USER_HOME/.nv/GLCache"
+mkdir -p "$TMP_USER_HOME/.var/app/com.example.App/cache"
 mkdir -p "$TMP_USER_HOME/.cache/thumbnails"
 mkdir -p "$TMP_USER_HOME/.local/share/Trash/files"
 
@@ -68,10 +71,13 @@ touch "$TMP_USER_HOME/.cache/mozilla/firefox/test.default/cache2/ff_entry"
 touch "$TMP_USER_HOME/.cache/uv/wheel_test"
 touch "$TMP_USER_HOME/.cache/pip/pip_test"
 touch "$TMP_USER_HOME/.npm/_cacache/npm_entry"
+touch "$TMP_USER_HOME/.cargo/registry/cache/crate_0"
+touch "$TMP_USER_HOME/.cache/go-build/go_0"
 touch "$TMP_USER_HOME/.config/Code/Cache/vscode_entry"
 touch "$TMP_USER_HOME/.cache/mesa_shader_cache/shader_0"
 touch "$TMP_USER_HOME/.cache/radv_builtin_shaders/radv_0"
 touch "$TMP_USER_HOME/.nv/GLCache/nv_0"
+touch "$TMP_USER_HOME/.var/app/com.example.App/cache/cache_entry"
 touch "$TMP_USER_HOME/.cache/thumbnails/thumb_0"
 touch "$TMP_USER_HOME/.local/share/Trash/files/trash_item"
 
@@ -94,6 +100,7 @@ DRY_RUN=false
 clean_browser_cache "$TMP_USER_HOME" >/dev/null
 clean_dev_cache "$TMP_USER_HOME" >/dev/null
 clean_gpu_cache "$TMP_USER_HOME" >/dev/null
+clean_flatpak_user_cache "$TMP_USER_HOME" >/dev/null
 clean_thumbnail "$TMP_USER_HOME" >/dev/null
 clean_user_trash "$TMP_USER_HOME" >/dev/null
 
@@ -103,9 +110,12 @@ for target in \
     "$TMP_USER_HOME/.cache/google-chrome/Default/Code Cache/wasm_0" \
     "$TMP_USER_HOME/.cache/google-chrome/Profile 1/GPUCache/data_1" \
     "$TMP_USER_HOME/.cache/mozilla/firefox/test.default/cache2/ff_entry" \
+    "$TMP_USER_HOME/.cargo/registry/cache/crate_0" \
+    "$TMP_USER_HOME/.cache/go-build/go_0" \
     "$TMP_USER_HOME/.cache/mesa_shader_cache/shader_0" \
     "$TMP_USER_HOME/.cache/radv_builtin_shaders/radv_0" \
     "$TMP_USER_HOME/.nv/GLCache/nv_0" \
+    "$TMP_USER_HOME/.var/app/com.example.App/cache/cache_entry" \
     "$TMP_USER_HOME/.cache/thumbnails/thumb_0" \
     "$TMP_USER_HOME/.local/share/Trash/files/trash_item"; do
     if [[ -e "$target" ]]; then
@@ -133,22 +143,22 @@ done
 echo "PASS: All mock cleanup functions cleanly emptied target directories"
 echo "PASS: All user profile data (History, Cookies, Bookmarks, Sessions) 100% PRESERVED"
 
-# Test 5: Full CLI Dry-Run with HTML report generation
-echo "Test 5: Full CLI dry-run and HTML report generation..."
-TEST_REPORT="$TMP_USER_HOME/test_report.html"
+# Test 5: Full CLI Dry-Run with Markdown/Text report generation
+echo "Test 5: Full CLI dry-run and summary report generation..."
+TEST_REPORT="$TMP_USER_HOME/test_report.md"
 TEST_LOG="$TMP_USER_HOME/test_log.log"
 UCM_TEST_EUID=0 bash "$SCRIPT_DIR/ucm.sh" --dry-run -u "$(whoami)" -y --log "$TEST_LOG" --report "$TEST_REPORT" >/dev/null
 
 if [[ ! -s "$TEST_REPORT" ]]; then
-    echo "FAIL: HTML report was not generated or is empty"
+    echo "FAIL: Summary report was not generated or is empty"
     exit 1
 fi
 
 if ! grep -q "UCM Maintenance Report" "$TEST_REPORT"; then
-    echo "FAIL: HTML report is missing title/content"
+    echo "FAIL: Summary report is missing title/content"
     exit 1
 fi
-echo "PASS: HTML report generated and validated successfully"
+echo "PASS: Summary report generated and validated successfully"
 
 # Test 6: Installation and Uninstallation Lifecycle
 echo "Test 6: Full Install / Uninstall Lifecycle..."
@@ -158,19 +168,20 @@ MOCK_LIB="$MOCK_ROOT/usr/local/lib/ucm"
 MOCK_BIN="$MOCK_ROOT/usr/local/sbin/ucm.sh"
 MOCK_CRON="$MOCK_ROOT/etc/cron.weekly/ucm"
 MOCK_LOGROTATE="$MOCK_ROOT/etc/logrotate.d/ucm"
+MOCK_SYSTEMD="$MOCK_ROOT/etc/systemd/system"
 
-UCM_TEST_EUID=0 UCM_LIB_DIR="$MOCK_LIB" UCM_BIN="$MOCK_BIN" UCM_CRON="$MOCK_CRON" UCM_LOGROTATE="$MOCK_LOGROTATE" \
+UCM_TEST_EUID=0 UCM_LIB_DIR="$MOCK_LIB" UCM_BIN="$MOCK_BIN" UCM_CRON="$MOCK_CRON" UCM_LOGROTATE="$MOCK_LOGROTATE" UCM_SYSTEMD_DIR="$MOCK_SYSTEMD" \
     bash -c "source '$SCRIPT_DIR/lib/common.sh'; install_ucm '$SCRIPT_DIR/ucm.sh' '$MOCK_CRON'" >/dev/null
 
-if [[ ! -x "$MOCK_BIN" || ! -f "$MOCK_LIB/lib/dev_clean.sh" || ! -f "$MOCK_LIB/lib/gpu_cache.sh" ]]; then
+if [[ ! -x "$MOCK_BIN" || ! -f "$MOCK_LIB/lib/dev_clean.sh" || ! -f "$MOCK_LIB/lib/gpu_cache.sh" || ! -f "$MOCK_SYSTEMD/ucm.timer" || ! -f "$MOCK_SYSTEMD/ucm.service" ]]; then
     echo "FAIL: Installed files missing in mock destination"
     exit 1
 fi
 
-UCM_TEST_EUID=0 UCM_LIB_DIR="$MOCK_LIB" UCM_BIN="$MOCK_BIN" UCM_CRON="$MOCK_CRON" UCM_LOGROTATE="$MOCK_LOGROTATE" \
+UCM_TEST_EUID=0 UCM_LIB_DIR="$MOCK_LIB" UCM_BIN="$MOCK_BIN" UCM_CRON="$MOCK_CRON" UCM_LOGROTATE="$MOCK_LOGROTATE" UCM_SYSTEMD_DIR="$MOCK_SYSTEMD" \
     bash -c "source '$SCRIPT_DIR/lib/common.sh'; uninstall_ucm '$MOCK_CRON'" >/dev/null
 
-if [[ -e "$MOCK_BIN" || -e "$MOCK_LIB" || -e "$MOCK_CRON" ]]; then
+if [[ -e "$MOCK_BIN" || -e "$MOCK_LIB" || -e "$MOCK_CRON" || -e "$MOCK_SYSTEMD/ucm.timer" || -e "$MOCK_SYSTEMD/ucm.service" ]]; then
     echo "FAIL: Uninstall left files behind"
     exit 1
 fi
