@@ -6,7 +6,7 @@ EXPECTED_MSG="This script must be run as root / Este script deve ser executado c
 test_root_check() {
     local script=$1
     echo "Testing $script root check..."
-    output=$(./$script 2>&1)
+    output=$(./"$script" 2>&1)
     status=$?
 
     if [ $status -ne 1 ]; then

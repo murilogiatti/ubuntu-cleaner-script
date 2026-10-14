@@ -8,8 +8,7 @@ errors=0
 for test_file in tests/test_*.sh; do
     if [ -f "$test_file" ]; then
         echo "Executing $test_file..."
-        bash "$test_file"
-        if [ $? -ne 0 ]; then
+        if ! bash "$test_file"; then
             ((errors++))
         fi
         echo "----------------"
@@ -18,8 +17,7 @@ done
 
 if command -v bats >/dev/null 2>&1; then
     echo "Executing Bats tests..."
-    (cd tests/bats && bats .)
-    if [ $? -ne 0 ]; then
+    if ! (cd tests/bats && bats .); then
         ((errors++))
     fi
     echo "----------------"

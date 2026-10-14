@@ -3,7 +3,9 @@
 # Common utilities for Ubuntu Cleaner & Maintainer (UCM)
 
 # Script version – keep in sync with README
+# shellcheck disable=SC2034
 UCM_VERSION="1.5.0"
+export UCM_VERSION
 
 # Default installation paths. Keep the full project together so ucm.sh can
 # source lib/*.sh after installation.
@@ -30,8 +32,10 @@ require_root() {
 # Simple implementation – only en and pt for the messages used in the main script.
 # ---------------------------------------------------------------------------
 set_locale_messages() {
+    # shellcheck disable=SC2034
     declare -gA MSG
-    local lang_code=$(echo "$LANG" | cut -d'_' -f1)
+    local lang_code
+    lang_code=$(echo "$LANG" | cut -d'_' -f1)
     if [[ "$lang_code" == "pt" ]]; then
         MSG[start]="Iniciando manutenção do sistema"
         MSG[user]="Usuário alvo"
